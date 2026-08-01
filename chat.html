@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="logo.png" type="image/x-icon">
     <title>AlifLamMeem - المحادثة</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
@@ -504,27 +505,65 @@
     </div>
 
     <script>
-        const BASE_URL = "http://127.0.0.1:5000";
+        // ============= إعدادات JSONBin =============
+        const JSONBIN_BIN_ID = '6a6d2605f5f4af5e29dbfa01';
+        const JSONBIN_API_KEY = '$2a$10$sfiB90gKWRuo/rVlGmq5MeMcJh7ku6DSmHwuviKkYoTlZa.C.6bmu';
         const API_KEY = "AlifLamMeem_Secret_2026";
-        
+
+        let BASE_URL = "";
         let currentUser = null;
         let selectedContact = null;
         let socket = null;
         let allUsers = [];
         let filteredContacts = [];
 
+        // ============= جلب الرابط من JSONBin =============
+        async function getServerUrl() {
+            try {
+                const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+                    headers: { 'X-Access-Key': JSONBIN_API_KEY }
+                });
+            
+                const data = await res.json();
+            
+                BASE_URL = data.record?.url 
+                        || data.record?.['url']
+                        || data.url 
+                        || data['url']
+                        || '';
+            
+                if (BASE_URL) {
+                    console.log('✅ الرابط:', BASE_URL);
+                    return true;
+                }
+
+            } catch (e) {
+                console.error('❌ خطأ:', e);
+            }
+            return false;
+        }
+
         // ============= Toast =============
         function showToast(message, type = 'error') {
             const toast = document.getElementById('toast');
+            if (!toast) return;
             toast.textContent = message;
             toast.className = `toast ${type} show`;
             setTimeout(() => toast.classList.remove('show'), 3000);
         }
 
         // ============= التحقق من تسجيل الدخول =============
-        window.addEventListener('DOMContentLoaded', () => {
+        window.addEventListener('DOMContentLoaded', async () => {
+            // ✅ استنى الرابط يتحمل الأول
+            const success = await getServerUrl();
+
+            if (!success) {
+                console.error('❌ فشل تحميل الرابط');
+                return;
+            }
+
             const userData = localStorage.getItem('alm_user');
-            
+
             if (!userData) {
                 document.body.innerHTML = `
                     <div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0a0f1a;color:white;flex-direction:column;gap:20px;font-family:'Segoe UI',Tahoma,sans-serif;">
@@ -537,7 +576,7 @@
                 `;
                 return;
             }
-
+        
             try {
                 currentUser = JSON.parse(userData);
                 if (!currentUser.username || !currentUser.role) throw new Error('بيانات غير صالحة');
@@ -551,20 +590,19 @@
         // ============= تهيئة =============
         function initChat() {
             document.getElementById('current-username').textContent = currentUser.nickname || currentUser.username;
-            
+
             const roleBadge = document.getElementById('current-role');
             roleBadge.textContent = getRoleInArabic(currentUser.role);
             roleBadge.className = `user-role role-${currentUser.role}`;
-            
+
             connectSocket();
             loadAllUsers();
-            
-            // للموبايل: إظهار الشريط الجانبي أولاً
+
             if (window.innerWidth <= 768) {
                 showSidebar();
             }
         }
-
+        
         // ============= Socket.IO =============
         function connectSocket() {
             try {

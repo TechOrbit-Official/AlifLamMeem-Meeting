@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="logo.png" type="image/x-icon">
     <title>AlifLamMeem - تسجيل الدخول</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -335,8 +336,39 @@
     </div>
 
     <script>
-                const BASE_URL = "http://127.0.0.1:5000";
+        // ============= إعدادات JSONBin =============
+        const JSONBIN_BIN_ID = '6a6d2605f5f4af5e29dbfa01'; // Bin ID
+        const JSONBIN_API_KEY = '$2a$10$sfiB90gKWRuo/rVlGmq5MeMcJh7ku6DSmHwuviKkYoTlZa.C.6bmu'; // API Key
+        const CHECK_INTERVAL = 30000; // 30 ثانية
+        let BASE_URL = "";
         const API_KEY = "AlifLamMeem_Secret_2026";
+
+        // ============= جلب الرابط من JSONBin =============
+        async function getServerUrl() {
+            try {
+                const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+                    headers: { 'X-Access-Key': JSONBIN_API_KEY }
+                });
+            
+                const data = await res.json();
+            
+                BASE_URL = data.record?.url 
+                        || data.record?.['url']
+                        || data.url 
+                        || data['url']
+                        || '';
+            
+                if (BASE_URL) {
+                    console.log('✅ الرابط:', BASE_URL);
+                }
+            
+            } catch (e) {
+                console.error('❌ خطأ:', e);
+            }
+        }
+
+        getServerUrl();
+        setInterval(getServerUrl, CHECK_INTERVAL)
 
         // ============= دوال العرض =============
         function showError(message) {
@@ -425,7 +457,7 @@
                     // تأخير بسيط قبل التحويل
                     setTimeout(() => {
                         console.log('🚀 التحويل إلى صفحة المحادثة...');
-                        window.location.href = '/AlifLamMeem-Meeting/chat.html';
+                        window.location.href = '/chat.html';
                     }, 1000);
                     
                 } else {
@@ -453,7 +485,7 @@
                     if (user.username && user.role) {
                         // يمكن إضافة فحص إضافي مع السيرفر
                         console.log('✅ الجلسة صالحة، يمكن التحويل مباشرة');
-                        window.location.href = '/AlifLamMeem-Meeting/chat.html';
+                        window.location.href = '/chat.html';
                     }
                 } catch (e) {
                     console.log('🗑️ بيانات جلسة غير صالحة، جاري المسح');
