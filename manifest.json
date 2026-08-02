@@ -1,0 +1,21 @@
+{
+  "name": "AlifLamMeem Meeting",
+  "short_name": "AlifLamMeem",
+  "description": "منصة التواصل AlifLamMeem",
+  "start_url": "/AlifLamMeem-Meeting/",
+  "display": "standalone",
+  "background_color": "#0a0f1a",
+  "theme_color": "#3b82f6",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

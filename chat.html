@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="shortcut icon" href="logo.png" type="image/x-icon">
     <title>AlifLamMeem - المحادثة</title>
+    <link rel="manifest" href="manifest.json">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <style>
@@ -2138,6 +2139,171 @@
                     `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
             }
         }
+        // ============= إشعارات الويب =============
+async function requestWebPermissions() {
+    try {
+        // طلب إذن الإشعارات
+        if ('Notification' in window) {
+            const permission = await Notification.requestPermission();
+            if (permission === 'granted') {
+                console.log('✅ تم منح إذن الإشعارات');
+                showToast('✅ تم تفعيل الإشعارات', 'success');
+            } else {
+                console.log('❌ تم رفض إذن الإشعارات');
+            }
+        }
+        
+        // طلب إذن الميكروفون والكاميرا (سيكون مطلوباً عند بدء المكالمة)
+        try {
+            await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+            console.log('✅ تم منح أذونات الوسائط');
+        } catch (e) {
+            console.log('⚠️ لم يتم منح أذونات الوسائط بعد');
+        }
+    } catch (error) {
+        console.error('❌ خطأ في طلب الأذونات:', error);
+    }
+}
+
+// عرض إشعار على الويب
+function showWebNotification(title, body, onClick = null) {
+    if (!('Notification' in window)) {
+        console.log('⚠️ الإشعارات غير مدعومة في هذا المتصفح');
+        return;
+    }
+    
+    if (Notification.permission === 'granted') {
+        const notification = new Notification(title, {
+            body: body,
+            icon: '/logo.png',
+            vibrate: [200, 100, 200],
+            requireInteraction: true,
+        });
+        
+        if (onClick) {
+            notification.onclick = onClick;
+        }
+        
+        setTimeout(() => notification.close(), 30000);
+        
+        return notification;
+    } else if (Notification.permission === 'denied') {
+        showToast('الرجاء تفعيل الإشعارات من إعدادات المتصفح', 'warning');
+    } else {
+        Notification.requestPermission();
+    }
+}
+
+    // ============= دمج الإشعارات مع المكالمات =============
+    // تحديث دالة استقبال المكالمة
+    const originalCallOfferHandler = socket._callbacks?.['call-offer'];
+    
+    // إعادة تعريف استقبال المكالمة مع الإشعارات
+    socket.on('call-offer', async (data) => {
+        console.log('📞 مكالمة واردة من:', data.from);
+        
+        // حفظ بيانات المكالمة
+        incomingCallData = data;
+        
+        // عرض الإشعار
+        const callerName = data.sender_nickname || data.from;
+        const callType = data.callType === 'audio' ? 'صوتية' : 'فيديو';
+        
+        // إشعار الويب
+        showWebNotification(
+            '📞 مكالمة ' + callType + ' واردة',
+            `من: ${callerName}`,
+            () => {
+                // عند الضغط على الإشعار، قبول المكالمة
+                acceptCall();
+                window.focus();
+            }
+        );
+        
+        // عرض نافذة المكالمة الواردة
+        document.getElementById('incoming-avatar').textContent = callerName.charAt(0);
+        document.getElementById('incoming-name').textContent = callerName;
+        document.getElementById('incoming-type').textContent = `مكالمة ${callType}`;
+        document.getElementById('incoming-call').classList.add('active');
+        
+        // تشغيل صوت الرنين
+        try {
+            const audio = new Audio('/ringtone.mp3');
+            audio.loop = true;
+            audio.play().catch(() => {});
+            window._ringtone = audio;
+        } catch (e) {}
+    });
+    
+    // ============= إشعار عند رفض المكالمة =============
+    socket.on('call-reject', (data) => {
+        console.log('❌ تم رفض المكالمة:', data.reason);
+        showToast(data.reason || 'تم رفض المكالمة', 'warning');
+        
+        // إشعار بالرفض
+        showWebNotification(
+            '❌ تم رفض المكالمة',
+            data.reason || 'الطرف الآخر رفض المكالمة'
+        );
+        
+        endCall();
+    });
+    
+    // ============= إشعار عند انتهاء المكالمة =============
+    socket.on('call-end', () => {
+        showToast('تم إنهاء المكالمة', 'warning');
+        
+        // إشعار بانتهاء المكالمة
+        showWebNotification(
+            '📴 انتهت المكالمة',
+            'تم إنهاء المكالمة بواسطة الطرف الآخر'
+        );
+        
+        endCall();
+    });
+    
+    // ============= طلب الأذونات عند تحميل الصفحة =============
+    // استدعاء طلب الأذونات عند بدء التطبيق
+    document.addEventListener('DOMContentLoaded', async () => {
+        // ... الكود الموجود ...
+        
+        // طلب أذونات الإشعارات والوسائط
+        await requestWebPermissions();
+    });
+    // ============= تسجيل Service Worker =============
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+                console.log('✅ Service Worker مسجل:', registration);
+            })
+            .catch((error) => {
+                console.error('❌ فشل تسجيل Service Worker:', error);
+            });
+    }
+
+    // ============= طلب إذن الإشعارات =============
+    async function requestNotificationPermission() {
+        if ('Notification' in window) {
+            const permission = await Notification.requestPermission();
+            if (permission === 'granted') {
+                console.log('✅ إذن الإشعارات ممنوح');
+                showToast('✅ تم تفعيل الإشعارات', 'success');
+            } else {
+                console.log('❌ تم رفض إذن الإشعارات');
+                showToast('⚠️ قم بتفعيل الإشعارات من الإعدادات', 'warning');
+            }
+        }
+    }
+
+    // استدعاء عند تحميل الصفحة
+    document.addEventListener('DOMContentLoaded', () => {
+        // ... الكود الموجود ...
+
+        // طلب إذن الإشعارات
+        if (Notification.permission === 'default') {
+            setTimeout(requestNotificationPermission, 2000);
+        }
+    });
     </script>
 </body>
 </html>
